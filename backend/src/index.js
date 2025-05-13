@@ -6,6 +6,24 @@ import preglediRouter from './routes/pregledi.js';
 import loginRouter    from './routes/login.js';
 import './models/index.js';
 await sequelize.sync({ alter:true });
+import { crudRouter } from './utils/crudRouter.js';
+import { Pacijent } from './models/Pacijent.js';
+import { Dokument } from './models/Dokument.js';
+import { Karton }   from './models/Karton.js';
+import { DomZdravlja } from './models/DomZdravlja.js';
+import { Osoblje }  from './models/Osoblje.js';
+
+app.use('/api/pacijenti',   crudRouter(Pacijent));
+app.use('/api/dokumenti',   crudRouter(Dokument));
+app.use('/api/kartoni',     crudRouter(Karton));
+app.use('/api/domovi',      crudRouter(DomZdravlja));
+app.use('/api/osoblje',     crudRouter(Osoblje));
+
+/* već postojeće specijalne rute */
+app.use('/api/termini', terminiRouter);
+app.use('/api/pregledi', preglediRouter);
+app.use('/api', loginRouter);
+
 
 
 const app = express();
