@@ -1,7 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // vue
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 // data
 const doctors = ref([
@@ -17,13 +19,9 @@ const services = ref([
 const selectedDoctor = ref(null);
 const selectedService = ref(null);
 const appointmentDate = ref("");
-const router = useRouter();
 
 // functions
 function bookAppointment() {
-  console.log(
-    `Appointment booked with Dr. ${selectedDoctor.value} for ${selectedService.value} on ${appointmentDate.value}`
-  );
   router.push("/appointments");
 }
 </script>

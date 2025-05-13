@@ -26,7 +26,7 @@ function closeModal() {
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/profile">Profile</RouterLink>
         <RouterLink to="/appointments">Appointments</RouterLink>
-        <RouterLink to="/cart">Medical Records</RouterLink>
+        <RouterLink to="/medical-records">Medical Records</RouterLink>
         <RouterLink to="/analytics">Analytics</RouterLink>
       </div>
     </div>

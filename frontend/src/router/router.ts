@@ -9,6 +9,9 @@ import ProfileView from "@/views/ProfileView.vue";
 import AnalyticsView from "@/views/AnalyticsView.vue";
 import AppointmentsView from "@/views/AppointmentsView.vue";
 import BookAppointmentView from "@/views/BookAppointmentView.vue";
+import EditAppointmentView from "@/views/EditAppointmentView.vue";
+import MedicalRecordsAddView from "@/views/MedicalRecordsAddView.vue";
+import MedicalRecordsView from "@/views/MedicalRecordsView.vue";
 
 import MainLayout from "@/layout/MainLayout.vue";
 
@@ -44,6 +47,22 @@ const routes = [
         //     next("/unauthorized");
         //   }
         // },
+      },
+      {
+        path: "/appointments/edit/:id",
+        name: "EditAppointment",
+        component: EditAppointmentView,
+        props: true,
+      },
+      {
+        path: "/medical-records",
+        name: "MedicalRecords",
+        component: MedicalRecordsView,
+      },
+      {
+        path: "/medical-records/add",
+        name: "MedicalRecordsAdd",
+        component: MedicalRecordsAddView,
       },
     ],
   },
