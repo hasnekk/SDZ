@@ -4,6 +4,9 @@ import { Pacijent } from './Pacijent.js';
 
 export const Analitika = sequelize.define('Analitika', {
   analitikaId: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true }
+},{
+  tableName: 'analitika',
+  timestamps: false
 });
 Pacijent.hasMany(Analitika, { foreignKey: 'pacijentId' });
 Analitika.belongsTo(Pacijent, { foreignKey: 'pacijentId' });
