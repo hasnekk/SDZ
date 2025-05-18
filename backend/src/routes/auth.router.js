@@ -26,6 +26,23 @@ function authenticate(req, res, next) {
   }
 }
 
+function isStaff(req, res, next) {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+
+    if (req.user.role === 'pacijent') throw new Error('only staff');
+
+    next();
+  } catch (error) {
+    console.error(error);
+    return res.status(403).json({ message: 'Unathorized' });
+  }
+}
+
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name, surname } = req.body;
@@ -101,4 +118,4 @@ router.post('/logout', (req, res) => {
 });
 
 export default router;
-export { authenticate };
+export { authenticate, isStaff };

@@ -4,10 +4,11 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
-import authRouter, { authenticate } from './src/routes/auth.router.js';
+import authRouter, { authenticate, isStaff } from './src/routes/auth.router.js';
 import profileRouter from './src/routes/profile.router.js';
 import appointmentRouter from './src/routes/appointments.router.js';
 import recordRouter from './src/routes/record.router.js';
+import analyticsRouter from './src/routes/analytics.router.js';
 
 const app = express();
 const port = 3000;
@@ -27,6 +28,7 @@ app.use(authenticate);
 app.use('/user', profileRouter);
 app.use('/appointment', appointmentRouter);
 app.use('/record', recordRouter);
+app.use('/analytics', isStaff, analyticsRouter);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

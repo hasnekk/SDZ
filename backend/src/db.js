@@ -36,7 +36,14 @@ async function findUserByEmail(email) {
   return response.rows[0] || null;
 }
 
-async function findUserById(id) {
+async function findUserById(id, role) {
+  if (!['pacijent', 'osoblje'].includes(role)) {
+    throw new Error('Invalid role');
+  }
+
+  const table = role === 'pacijent' ? 'pacijent' : 'osoblje';
+  const idColumn = role === 'pacijent' ? 'pacijentId' : 'osobljeId';
+
   const query = {
     text: `
       SELECT 
@@ -44,24 +51,12 @@ async function findUserById(id) {
         prezime AS surname,
         lozinka,
         email,
-        'osoblje' AS role
-      FROM osoblje 
-      WHERE osobljeId = $1
-
-      UNION
-
-      SELECT 
-        ime AS name,
-        prezime AS surname,
-        lozinka,
-        email,
-        'pacijent' AS role
-      FROM pacijent 
-      WHERE pacijentId = $1
-
+        $2 AS role
+      FROM ${table}
+      WHERE ${idColumn} = $1
       LIMIT 1;
     `,
-    values: [id],
+    values: [id, role],
   };
 
   const response = await pool.query(query);
@@ -160,7 +155,29 @@ async function getPatientAppointments(id, limit) {
   return response.rows;
 }
 
-async function getStaffAppointments(id, limit) {}
+async function getStaffAppointments(id, limit) {
+  const query = {
+    text: `
+      SELECT opis, datum, status, pacijent.ime, pacijent.prezime, terminId as id
+      FROM 
+        pregled 
+        NATURAL JOIN termin
+        NATURAL JOIN pristuno_osoblje 
+        NATURAL JOIN osoblje
+      	INNER JOIN pacijent ON pacijent.pacijentId = pregled.pacijentId
+      WHERE 
+        pristuno_osoblje.osobljeId = $1
+        AND status = 'scheduled'
+      ORDER BY datum ASC
+      LIMIT $2
+    `,
+    values: [id, limit],
+  };
+
+  const response = await pool.query(query);
+
+  return response.rows;
+}
 
 async function deleteAppointment(appointmentId) {
   await pool.query(`DELETE FROM pristuno_osoblje WHERE terminId = $1`, [appointmentId]);
@@ -298,6 +315,92 @@ async function getRecords(id, limit) {
   return response.rows;
 }
 
+async function getNumOfPatients() {
+  const query = {
+    text: `
+      SELECT COUNT(*)
+      FROM 
+        pacijent
+    `,
+  };
+
+  const response = await pool.query(query);
+  return response.rows?.[0].count;
+}
+
+async function getNumOfAppointments() {
+  const query = {
+    text: `
+      SELECT COUNT(*)
+      FROM 
+        termin
+    `,
+  };
+
+  const response = await pool.query(query);
+  return response.rows?.[0].count;
+}
+
+async function getNumOfStatuses() {
+  const { rows } = await pool.query(`
+  SELECT status, COUNT(*) AS count
+  FROM Termin
+  GROUP BY status;
+`);
+
+  const statusOrder = ['completed', 'canceled', 'not-arrived', 'scheduled'];
+  const statusCounts = {
+    completed: 0,
+    canceled: 0,
+    'not-arrived': 0,
+    scheduled: 0,
+  };
+
+  // Fill in counts from the DB
+  rows.forEach((row) => {
+    const status = row.status;
+    // eslint-disable-next-line no-prototype-builtins
+    if (statusCounts.hasOwnProperty(status)) {
+      statusCounts[status] = parseInt(row.count, 10);
+    }
+  });
+
+  return statusOrder.map((status) => statusCounts[status]);
+}
+
+async function getappointmentsPerDay() {
+  const { rows } = await pool.query(`
+  SELECT 
+    TO_CHAR(datum, 'Dy') AS day,
+    COUNT(*) AS count
+  FROM Termin
+  WHERE status = 'scheduled'
+  GROUP BY TO_CHAR(datum, 'Dy'), EXTRACT(DOW FROM datum)
+  ORDER BY EXTRACT(DOW FROM datum);
+`);
+
+  const dayMap = {
+    Mon: 0,
+    Tue: 1,
+    Wed: 2,
+    Thu: 3,
+    Fri: 4,
+    Sat: 5,
+    Sun: 6,
+  };
+
+  const appointmentsPerDay = new Array(5).fill(0); // Only Mon–Fri
+
+  for (const row of rows) {
+    const index = dayMap[row.day.trim()];
+    if (index < 5) {
+      appointmentsPerDay[index] = parseInt(row.count, 10);
+    }
+  }
+
+  return appointmentsPerDay;
+}
+
 export {
   findUserById,
   findUserByEmail,
@@ -311,4 +414,8 @@ export {
   updateAppointment,
   createAppointment,
   getRecords,
+  getNumOfPatients,
+  getNumOfAppointments,
+  getappointmentsPerDay,
+  getNumOfStatuses,
 };

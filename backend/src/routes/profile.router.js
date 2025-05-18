@@ -8,8 +8,9 @@ const saltRounds = 10;
 router.get('/profile', async (req, res) => {
   try {
     const id = req.user.id;
+    const role = req.user.role;
 
-    const user = await findUserById(id);
+    const user = await findUserById(id, role);
 
     if (!user) {
       return res.status(400).json({ message: 'User not found' });
@@ -48,7 +49,7 @@ router.patch('/profile/password', async (req, res) => {
     const role = req.user.role;
     const { currentPassword, password } = req.body;
 
-    const user = await findUserById(id);
+    const user = await findUserById(id, role);
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 

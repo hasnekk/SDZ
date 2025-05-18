@@ -6,11 +6,12 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const id = req.user.id;
+    const role = req.user.role;
 
     const limit = parseInt(req.query.limit) || 10;
 
     const records = await getRecords(id, limit);
-    const user = await findUserById(id);
+    const user = await findUserById(id, role);
 
     res.status(200).json({ records, name: user.name });
   } catch (error) {
