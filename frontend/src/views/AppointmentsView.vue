@@ -1,26 +1,35 @@
 <script setup lang="ts">
 // Vue
-import { ref, type Ref, onBeforeMount } from "vue";
+import { ref, type Ref, onBeforeMount, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 
 import { useToast } from "vue-toastification";
 
 import api from "@/axios/axios";
 
+import { useAuthStore } from "@/stores/authStore";
+
 const router = useRouter();
 const toast = useToast();
+
+const authStore = useAuthStore();
 
 // data
 const appointments: Ref<
   Array<{
     id: string;
     datum: string;
-    prezime: string; // doctor
+    prezime: string; // doctor or patient
     opis: string;
     status: string;
+    ime?: string;
   }>
 > = ref([]);
 const isLoading = ref(true);
+const { role } = storeToRefs(authStore);
+
+const isStaff = computed(() => role.value === "osoblje");
 
 // Functions
 function formatTime(time: string) {
@@ -83,7 +92,13 @@ onBeforeMount(async () => {
           class="appointment-card"
         >
           <div class="appointment-info">
-            <h2 class="appointment-doctor">dr. {{ appointment.prezime }}</h2>
+            <h2 v-if="!isStaff" class="appointment-doctor">
+              dr. {{ appointment.prezime }}
+            </h2>
+            <h2 v-else class="appointment-doctor">
+              {{ appointment.ime }}
+              {{ appointment.prezime }}
+            </h2>
             <p class="appointment-time">{{ formatTime(appointment.datum) }}</p>
             <p class="appointment-service">{{ appointment.opis }}</p>
           </div>
@@ -104,7 +119,10 @@ onBeforeMount(async () => {
         </div>
       </div>
 
-      <router-link to="/appointments/book" class="btn book-appointment-btn"
+      <router-link
+        v-if="!isStaff"
+        to="/appointments/book"
+        class="btn book-appointment-btn"
         >Book New Appointment</router-link
       >
     </template>

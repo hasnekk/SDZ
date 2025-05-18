@@ -20,8 +20,6 @@ onBeforeMount(async () => {
   try {
     const response = await api.get("/record");
 
-    console.log(response);
-
     patientName.value = response.data.name;
     medicalRecord.value = response.data.records;
   } catch (error: any) {

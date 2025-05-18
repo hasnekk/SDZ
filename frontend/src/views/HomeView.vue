@@ -35,19 +35,35 @@ const medicalRecords = ref<MedicalRecord[]>([]);
 const medicalRecord = computed(() => medicalRecords.value[0]);
 
 const stats = ref({
-  totalPatients: 140,
-  totalAppointments: 89,
-  occupancyRate: "79%",
+  totalPatients: 0,
+  totalAppointments: 0,
 });
 
 onBeforeMount(async () => {
   try {
-    await Promise.all([getRecord(), getAppointments()]);
+    if (isStaff.value) {
+      await Promise.all([getRecord(), getAnalytics()]);
+    } else {
+      await Promise.all([getRecord(), getAppointments()]);
+    }
   } catch (error) {
   } finally {
     isLoading.value = false;
   }
 });
+
+async function getAnalytics() {
+  try {
+    const response = await api.get("/analytics");
+
+    stats.value.totalPatients = response.data.numOfPatients;
+    stats.value.totalAppointments = response.data.numOfAppointments;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response?.data?.message);
+    throw error;
+  }
+}
 
 async function getRecord() {
   try {
@@ -93,7 +109,7 @@ function goToAnalytics() {
     <template v-if="isLoading"> <LoadingSpinner /> </template>
     <template v-else>
       <h1 class="text-2xl font-bold mb-6 text-center text-blue-900">
-        👋 Welcome, {{ userName }}
+        👋 Welcome, <span v-if="isStaff">dr. </span> {{ userName }}
       </h1>
 
       <!-- PATIENT SECTIONS -->
@@ -162,10 +178,6 @@ function goToAnalytics() {
             <li class="stat-box">
               <strong class="text-lg">{{ stats.totalAppointments }}</strong>
               <p class="text-sm text-gray-600">Appointments</p>
-            </li>
-            <li class="stat-box">
-              <strong class="text-lg">{{ stats.occupancyRate }}</strong>
-              <p class="text-sm text-gray-600">Occupancy</p>
             </li>
           </ul>
           <button @click="goToAnalytics" class="btn-primary mt-4">

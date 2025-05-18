@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onBeforeMount } from "vue";
 import { useRouter } from "vue-router";
 import { Bar, Doughnut } from "vue-chartjs";
 import {
@@ -12,6 +12,11 @@ import {
   LinearScale,
   ArcElement,
 } from "chart.js";
+import { useAuthStore } from "@/stores/authStore";
+import { storeToRefs } from "pinia";
+import { useToast } from "vue-toastification";
+import api from "@/axios/axios";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
 ChartJS.register(
   Title,
@@ -23,10 +28,15 @@ ChartJS.register(
   ArcElement
 );
 
-const router = useRouter();
+const authStore = useAuthStore();
 
-const user = { role: "staff" };
-const isStaff = user?.role === "staff";
+const { role } = storeToRefs(authStore);
+
+const router = useRouter();
+const toast = useToast();
+
+const isStaff = computed(() => role.value === "staff");
+const isLoading = ref(true);
 
 if (!isStaff) {
   router.push("/not-authorized");
@@ -34,7 +44,6 @@ if (!isStaff) {
 
 const totalPatients = ref(120);
 const totalAppointments = ref(85);
-const occupancyRate = ref(0.71);
 
 const appointmentStats = ref({
   labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
@@ -48,48 +57,61 @@ const appointmentStats = ref({
 });
 
 const serviceDistribution = ref({
-  labels: ["Checkups", "Dental", "Cardiology", "Dermatology"],
+  labels: ["completed", "canceled", "not-arrived", "scheduled"],
   datasets: [
     {
-      label: "Service Usage",
+      label: "Status of terms",
       backgroundColor: ["#1abc9c", "#e67e22", "#9b59b6", "#f39c12"],
       data: [40, 25, 10, 25],
     },
   ],
 });
 
-onMounted(() => {
-  // Fetch real analytics if connected to backend
+onBeforeMount(async () => {
+  try {
+    const reponse = await api.get("/analytics");
+
+    console.log(reponse);
+
+    totalPatients.value = reponse.data.numOfPatients;
+    totalAppointments.value = reponse.data.numOfAppointments;
+    appointmentStats.value.datasets[0].data = reponse.data.appointmentsPerDay;
+    serviceDistribution.value.datasets[0].data = reponse.data.numOfStatuses;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+  }
 });
 </script>
 
 <template>
   <div class="analytics-container">
-    <h1>📊 Staff Analytics Dashboard</h1>
+    <template v-if="isLoading"> <LoadingSpinner /> </template>
+    <template v-else>
+      <h1>📊 Staff Analytics Dashboard</h1>
 
-    <div class="metrics">
-      <div class="metric-card">
-        <h3>Total Patients</h3>
-        <p>{{ totalPatients }}</p>
+      <div class="metrics">
+        <div class="metric-card">
+          <h3>Total Patients</h3>
+          <p>{{ totalPatients }}</p>
+        </div>
+        <div class="metric-card">
+          <h3>Total Appointments</h3>
+          <p>{{ totalAppointments }}</p>
+        </div>
       </div>
-      <div class="metric-card">
-        <h3>Total Appointments</h3>
-        <p>{{ totalAppointments }}</p>
-      </div>
-      <div class="metric-card">
-        <h3>Occupancy Rate</h3>
-        <p>{{ (occupancyRate * 100).toFixed(0) }}%</p>
-      </div>
-    </div>
 
-    <div class="charts">
-      <div class="chart-box">
-        <Bar :data="appointmentStats" />
+      <div class="charts">
+        <div class="chart-box">
+          <Bar :data="appointmentStats" />
+        </div>
+        <div class="chart-box">
+          <Doughnut :data="serviceDistribution" />
+        </div>
       </div>
-      <div class="chart-box">
-        <Doughnut :data="serviceDistribution" />
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 

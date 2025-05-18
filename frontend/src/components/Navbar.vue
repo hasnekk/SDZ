@@ -33,7 +33,9 @@ function closeModal() {
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/profile">Profile</RouterLink>
         <RouterLink to="/appointments">Appointments</RouterLink>
-        <RouterLink to="/medical-records">Medical Records</RouterLink>
+        <RouterLink v-if="role === 'pacijent'" to="/medical-records"
+          >Medical Records</RouterLink
+        >
         <RouterLink v-if="role === 'osoblje'" to="/analytics"
           >Analytics</RouterLink
         >

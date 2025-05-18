@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import api from "@/axios/axios";
-import { ref, onBeforeMount } from "vue";
+import { useAuthStore } from "@/stores/authStore";
+import { storeToRefs } from "pinia";
+import { ref, onBeforeMount, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 
@@ -8,9 +10,12 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
+const authStore = useAuthStore();
+
 const appointmentId = Number(route.params.id);
 
-// Mock existing appointment data
+const { role } = storeToRefs(authStore);
+
 const appointment = ref({
   id: appointmentId,
   doctor: 0,
@@ -18,7 +23,7 @@ const appointment = ref({
   datum: "",
 });
 const isLoading = ref(true);
-
+const isStaff = computed(() => role.value === "osoblje");
 const doctors = ref<{ id: number; prezime: string }[]>([]);
 
 async function saveChanges() {
@@ -63,7 +68,7 @@ onBeforeMount(async () => {
       <h1>Edit Appointment</h1>
 
       <form @submit.prevent="saveChanges">
-        <div>
+        <div v-if="!isStaff">
           <label>Doctor</label>
           <select v-model="appointment.doctor" required>
             <option v-for="doc in doctors" :key="doc.id" :value="doc.id">
