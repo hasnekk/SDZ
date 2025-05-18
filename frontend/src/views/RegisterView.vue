@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // vue
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 
 // 3-td party modules
 import { useToast } from "vue-toastification";
@@ -8,17 +9,28 @@ import { useToast } from "vue-toastification";
 // components
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
+// stores
+import { useAuthStore } from "@/stores/authStore";
+
+import api from "@/axios/axios";
+
 const toast = useToast();
+const router = useRouter();
+
+// stores
+const authStore = useAuthStore();
 
 // data
 const email = ref("");
 const password = ref("");
 const repeatPassword = ref("");
+const name = ref("");
+const surname = ref("");
 const showPassword = ref(false);
 const isLoading = ref(false);
 
 // functions
-function handleSubmit() {
+async function handleSubmit() {
   if (password.value !== repeatPassword.value) {
     toast.error("Passwords do not match.");
     return;
@@ -27,9 +39,21 @@ function handleSubmit() {
   isLoading.value = true;
 
   try {
-  } catch (error) {
-    console.log(error);
-    toast.error(error);
+    const response = await api.post("/auth/register", {
+      email: email.value,
+      password: password.value,
+      name: name.value,
+      surname: surname.value,
+    });
+
+    const { message, role } = response.data;
+    authStore.login(role);
+    toast.success(message);
+
+    router.push({ name: "Home" });
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
   } finally {
     isLoading.value = false;
   }
@@ -67,6 +91,16 @@ function handleSubmit() {
               v-model="repeatPassword"
               required
             />
+          </div>
+
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" v-model="name" required />
+          </div>
+
+          <div class="form-group">
+            <label>Surname</label>
+            <input type="text" v-model="surname" required />
           </div>
 
           <div class="toggle-password">

@@ -1,9 +1,13 @@
 <script setup lang="ts">
 // vue
-import { ref } from "vue";
+import api from "@/axios/axios";
+import { onBeforeMount, ref } from "vue";
 
 // 3-td party modules
 import { useToast } from "vue-toastification";
+
+// components
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
 const toast = useToast();
 
@@ -13,67 +17,108 @@ const email = ref("john.doe@example.com");
 const currentPassword = ref("");
 const newPassword = ref("");
 const confirmNewPassword = ref("");
+const isLoading = ref(true);
 
 const isSaving = ref(false);
 
-function updateProfile() {
+onBeforeMount(async () => {
+  isLoading.value = true;
+
+  try {
+    const response = await api.get("/user/profile");
+
+    name.value = response.data.name;
+    email.value = response.data.email;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+async function updateProfile() {
   isSaving.value = true;
 
-  // Simulate delay
-  setTimeout(() => {
+  try {
+    const response = await api.patch("/user/profile", {
+      name: name.value,
+      email: email.value,
+    });
+
+    name.value = response.data.user.name;
+    email.value = response.data.user.email;
+    toast.success(response.data.message);
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
     isSaving.value = false;
-    toast.success("Profile updated successfully!");
-  }, 1000);
+  }
 }
 
-function changePassword() {
+async function changePassword() {
   if (newPassword.value !== confirmNewPassword.value) {
     toast.error("New passwords do not match.");
     return;
   }
 
   isSaving.value = true;
-  // Simulate password update
-  setTimeout(() => {
+
+  try {
+    const response = await api.patch("/user/profile/password", {
+      currentPassword: currentPassword.value,
+      password: newPassword.value,
+    });
+
+    toast.success(response.data.message);
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
     isSaving.value = false;
-    toast.success("Password changed successfully!");
     currentPassword.value = "";
     newPassword.value = "";
     confirmNewPassword.value = "";
-  }, 1000);
+  }
 }
 </script>
 
 <template>
   <div class="profile-wrapper">
-    <h2>Profile</h2>
+    <template v-if="isLoading"> <LoadingSpinner /> </template>
+    <template v-else>
+      <h2>Profile</h2>
 
-    <div class="section">
-      <h3>Personal Information</h3>
-      <label>Name</label>
-      <input v-model="name" type="text" />
+      <div class="section">
+        <h3>Personal Information</h3>
+        <label>Name</label>
+        <input v-model="name" type="text" />
 
-      <label>Email</label>
-      <input v-model="email" type="email" />
+        <label>Email</label>
+        <input v-model="email" type="email" />
 
-      <button @click="updateProfile" :disabled="isSaving">Save Changes</button>
-    </div>
+        <button @click="updateProfile" :disabled="isSaving">
+          Save Changes
+        </button>
+      </div>
 
-    <div class="section">
-      <h3>Change Password</h3>
-      <label>Current Password</label>
-      <input v-model="currentPassword" type="password" />
+      <div class="section">
+        <h3>Change Password</h3>
+        <label>Current Password</label>
+        <input v-model="currentPassword" type="password" />
 
-      <label>New Password</label>
-      <input v-model="newPassword" type="password" />
+        <label>New Password</label>
+        <input v-model="newPassword" type="password" />
 
-      <label>Confirm New Password</label>
-      <input v-model="confirmNewPassword" type="password" />
+        <label>Confirm New Password</label>
+        <input v-model="confirmNewPassword" type="password" />
 
-      <button @click="changePassword" :disabled="isSaving">
-        Change Password
-      </button>
-    </div>
+        <button @click="changePassword" :disabled="isSaving">
+          Change Password
+        </button>
+      </div>
+    </template>
   </div>
 </template>
 

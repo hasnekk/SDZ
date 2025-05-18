@@ -1,69 +1,95 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import api from "@/axios/axios";
+import { ref, onBeforeMount } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
+
 const appointmentId = Number(route.params.id);
 
 // Mock existing appointment data
 const appointment = ref({
   id: appointmentId,
-  doctor: 1,
-  service: 1,
-  date: "2025-05-15",
+  doctor: 0,
+  opis: "",
+  datum: "",
 });
+const isLoading = ref(true);
 
-const doctors = ref([
-  { id: 1, name: "Dr. Smith" },
-  { id: 2, name: "Dr. Johnson" },
-]);
+const doctors = ref<{ id: number; prezime: string }[]>([]);
 
-const services = ref([
-  { id: 1, name: "General Checkup" },
-  { id: 2, name: "Dental Cleaning" },
-]);
+async function saveChanges() {
+  isLoading.value = true;
 
-function saveChanges() {
-  console.log("Saving appointment", appointment.value);
-  router.push("/appointments");
+  try {
+    await api.patch("/appointment/" + appointmentId, {
+      appointment: appointment.value,
+    });
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+    router.push("/appointments");
+  }
 }
 
-onMounted(() => {
-  // Here you'd fetch appointment data by ID from API if needed
+onBeforeMount(async () => {
+  try {
+    const response = await api.get("/appointment/" + appointmentId);
+    doctors.value = response.data.doctors;
+    appointment.value = {
+      ...response.data.appointment,
+      datum: response.data.appointment.datum.slice(0, 10), // Format date
+    };
+
+    console.log(response);
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+  }
 });
 </script>
 
 <template>
   <div class="edit-appointment">
-    <h1>Edit Appointment</h1>
+    <template v-if="isLoading"></template>
+    <template v-else>
+      <h1>Edit Appointment</h1>
 
-    <form @submit.prevent="saveChanges">
-      <div>
-        <label>Doctor</label>
-        <select v-model="appointment.doctor" required>
-          <option v-for="doc in doctors" :key="doc.id" :value="doc.id">
-            {{ doc.name }}
-          </option>
-        </select>
-      </div>
+      <form @submit.prevent="saveChanges">
+        <div>
+          <label>Doctor</label>
+          <select v-model="appointment.doctor" required>
+            <option v-for="doc in doctors" :key="doc.id" :value="doc.id">
+              dr. {{ doc.prezime }}
+            </option>
+          </select>
+        </div>
 
-      <div>
-        <label>Service</label>
-        <select v-model="appointment.service" required>
-          <option v-for="srv in services" :key="srv.id" :value="srv.id">
-            {{ srv.name }}
-          </option>
-        </select>
-      </div>
+        <div>
+          <label>Description</label>
+          <input
+            type="text"
+            v-model="appointment.opis"
+            required
+            placeholder="Enter desc"
+          />
+        </div>
 
-      <div>
-        <label>Date</label>
-        <input type="date" v-model="appointment.date" required />
-      </div>
+        <div>
+          <label>Date</label>
+          <input type="date" v-model="appointment.datum" required />
+        </div>
 
-      <button type="submit">Save Changes</button>
-    </form>
+        <button type="submit">Save Changes</button>
+      </form>
+    </template>
   </div>
 </template>
 

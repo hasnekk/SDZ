@@ -1,67 +1,95 @@
 <script setup lang="ts">
 // vue
-import { ref } from "vue";
+import api from "@/axios/axios";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import { onBeforeMount, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
 
 const router = useRouter();
+const toast = useToast();
 
 // data
-const doctors = ref([
-  { id: 1, name: "Dr. Smith" },
-  { id: 2, name: "Dr. Johnson" },
-]);
-
-const services = ref([
-  { id: 1, name: "General Checkup" },
-  { id: 2, name: "Dental Cleaning" },
-]);
+const doctors = ref<{ id: number; prezime: string }[]>([]);
 
 const selectedDoctor = ref(null);
-const selectedService = ref(null);
+const desc = ref("");
 const appointmentDate = ref("");
+const isLoading = ref(false);
 
 // functions
-function bookAppointment() {
-  router.push("/appointments");
+async function bookAppointment() {
+  isLoading.value = true;
+
+  try {
+    await api.post("/appointment", {
+      doctor: selectedDoctor.value,
+      desc: desc.value,
+      date: appointmentDate.value,
+    });
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+    router.push("/appointments");
+  }
 }
+
+onBeforeMount(async () => {
+  isLoading.value = true;
+
+  try {
+    const response = await api.get("/appointment/doctors/all");
+    doctors.value = response.data.doctors;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+  }
+});
 </script>
 
 <template>
   <div class="book-appointment">
-    <h1>Book an Appointment</h1>
+    <template v-if="isLoading"> <LoadingSpinner /> </template>
+    <template v-else>
+      <h1>Book an Appointment</h1>
 
-    <form @submit.prevent="bookAppointment">
-      <div>
-        <label for="doctor">Select Doctor</label>
-        <select v-model="selectedDoctor" required>
-          <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">
-            {{ doctor.name }}
-          </option>
-        </select>
-      </div>
+      <form @submit.prevent="bookAppointment">
+        <div>
+          <label for="doctor">Select Doctor</label>
+          <select v-model="selectedDoctor" required>
+            <option
+              v-for="doctor in doctors"
+              :key="doctor.id"
+              :value="doctor.id"
+            >
+              dr. {{ doctor.prezime }}
+            </option>
+          </select>
+        </div>
 
-      <div>
-        <label for="service">Select Service</label>
-        <select v-model="selectedService" required>
-          <option
-            v-for="service in services"
-            :key="service.id"
-            :value="service.id"
-          >
-            {{ service.name }}
-          </option>
-        </select>
-      </div>
+        <div>
+          <label>Description</label>
+          <input
+            type="text"
+            v-model="desc"
+            required1
+            placeholder="Enter desc"
+          />
+        </div>
+        <div>
+          <label for="date">Select Date</label>
+          <input type="date" v-model="appointmentDate" required />
+        </div>
 
-      <div>
-        <label for="date">Select Date</label>
-        <input type="date" v-model="appointmentDate" required />
-      </div>
-
-      <div>
-        <button type="submit">Book Appointment</button>
-      </div>
-    </form>
+        <div>
+          <button type="submit">Book Appointment</button>
+        </div>
+      </form>
+    </template>
   </div>
 </template>
 

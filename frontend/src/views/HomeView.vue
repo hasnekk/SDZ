@@ -1,37 +1,38 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import api from "@/axios/axios";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import { useAuthStore } from "@/stores/authStore";
+import { storeToRefs } from "pinia";
+import { ref, computed, onBeforeMount } from "vue";
 import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
 
+type MedicalRecord = {
+  prezime: string;
+  opis: string;
+  datum: string;
+};
+const authStore = useAuthStore();
+
+const toast = useToast();
 const router = useRouter();
+const { role } = storeToRefs(authStore);
 
-const user = ref({
-  name: "John Doe",
-  role: "patient", // "staff" or "patient"
-});
+const isStaff = computed(() => role.value === "osoblje");
 
-const isStaff = computed(() => user.value.role === "staff");
-
-const appointments = ref([
-  {
-    id: 1,
-    date: "2025-05-14",
-    doctor: "Dr. Smith",
-    service: "Dental Cleaning",
-  },
-  {
-    id: 2,
-    date: "2025-05-20",
-    doctor: "Dr. Johnson",
-    service: "General Checkup",
-  },
-]);
-
-const medicalRecord = ref({
-  doctorName: "Dr. Smith",
-  diagnosis: "Seasonal Flu",
-  treatment: "Rest, fluids, paracetamol",
-  date: "2025-05-10",
-});
+const appointments = ref<
+  Array<{
+    id: string;
+    datum: string;
+    prezime: string; // doctor
+    opis: string;
+    status: string;
+  }>
+>([]);
+const isLoading = ref(true);
+const userName = ref("");
+const medicalRecords = ref<MedicalRecord[]>([]);
+const medicalRecord = computed(() => medicalRecords.value[0]);
 
 const stats = ref({
   totalPatients: 140,
@@ -39,9 +40,45 @@ const stats = ref({
   occupancyRate: "79%",
 });
 
+onBeforeMount(async () => {
+  try {
+    await Promise.all([getRecord(), getAppointments()]);
+  } catch (error) {
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+async function getRecord() {
+  try {
+    const response = await api.get("/record?limit=1");
+    medicalRecords.value = response.data.records;
+    userName.value = response.data.name;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(
+      error.response?.data?.message || "Failed to load medical record."
+    );
+    throw error;
+  }
+}
+
+async function getAppointments() {
+  try {
+    const response = await api.get("/appointment/all?limit=2");
+    appointments.value = response.data;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(
+      error.response?.data?.message || "Failed to load appointments."
+    );
+    throw error;
+  }
+}
+
 // Navigation functions
 function goToBooking() {
-  router.push("/book");
+  router.push("/appointments/book");
 }
 function goToAppointments() {
   router.push("/appointments");
@@ -53,94 +90,101 @@ function goToAnalytics() {
 
 <template>
   <div class="p-4 max-w-4xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6 text-center text-blue-900">
-      👋 Welcome, {{ user.name }}
-    </h1>
+    <template v-if="isLoading"> <LoadingSpinner /> </template>
+    <template v-else>
+      <h1 class="text-2xl font-bold mb-6 text-center text-blue-900">
+        👋 Welcome, {{ userName }}
+      </h1>
 
-    <!-- PATIENT SECTIONS -->
-    <div v-if="!isStaff" class="flex flex-col gap-6">
-      <!-- Appointments -->
-      <section class="bg-white p-4 rounded-xl shadow-md">
-        <h2 class="text-xl font-semibold mb-2">📅 Upcoming Appointments</h2>
-        <div v-if="appointments.length > 0">
-          <ul class="space-y-2">
-            <li
-              v-for="appt in appointments"
-              :key="appt.id"
-              class="border p-3 rounded-lg flex flex-col sm:flex-row sm:justify-between"
-            >
-              <span
-                ><strong>{{ appt.date }}</strong> with {{ appt.doctor }}</span
+      <!-- PATIENT SECTIONS -->
+      <div v-if="!isStaff" class="flex flex-col gap-6">
+        <!-- Appointments -->
+        <section class="bg-white p-4 rounded-xl shadow-md">
+          <h2 class="text-xl font-semibold mb-2">📅 Upcoming Appointments</h2>
+          <div v-if="appointments.length > 0">
+            <ul class="space-y-2">
+              <li
+                v-for="appt in appointments"
+                :key="appt.id"
+                class="border p-3 rounded-lg flex flex-col sm:flex-row sm:justify-between"
               >
-              <span class="text-sm text-gray-500">{{ appt.service }}</span>
+                <span
+                  ><strong>{{ new Date(appt.datum).toDateString() }}</strong>
+                  with dr. {{ appt.prezime }}</span
+                >
+                <span class="text-sm text-gray-500">{{ appt.opis }}</span>
+              </li>
+            </ul>
+          </div>
+          <p v-else class="text-gray-600">No upcoming appointments.</p>
+        </section>
+
+        <!-- Medical Record -->
+        <section class="bg-white p-4 rounded-xl shadow-md">
+          <h2 class="text-xl font-semibold mb-2">
+            🧾 Your Latest Medical Record
+          </h2>
+          <ul v-if="medicalRecord" class="space-y-1 text-gray-700">
+            <li><strong>Doctor:</strong> dr. {{ medicalRecord.prezime }}</li>
+            <li><strong>Description:</strong> {{ medicalRecord.opis }}</li>
+            <li>
+              <strong>Date:</strong>
+              {{ new Date(medicalRecord.datum).toDateString() }}
             </li>
           </ul>
-        </div>
-        <p v-else class="text-gray-600">No upcoming appointments.</p>
-      </section>
+          <p v-else class="text-gray-600">No medical records.</p>
+        </section>
 
-      <!-- Medical Record -->
-      <section class="bg-white p-4 rounded-xl shadow-md">
-        <h2 class="text-xl font-semibold mb-2">
-          🧾 Your Latest Medical Record
-        </h2>
-        <ul class="space-y-1 text-gray-700">
-          <li><strong>Doctor:</strong> {{ medicalRecord.doctorName }}</li>
-          <li><strong>Diagnosis:</strong> {{ medicalRecord.diagnosis }}</li>
-          <li><strong>Treatment:</strong> {{ medicalRecord.treatment }}</li>
-          <li><strong>Date:</strong> {{ medicalRecord.date }}</li>
-        </ul>
-      </section>
+        <!-- Actions -->
+        <section class="bg-white p-4 rounded-xl shadow-md">
+          <h2 class="text-xl font-semibold mb-2">🩺 Quick Actions</h2>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button @click="goToBooking" class="btn-primary">
+              Book Appointment
+            </button>
+            <button @click="goToAppointments" class="btn-outline">
+              View All
+            </button>
+          </div>
+        </section>
+      </div>
 
-      <!-- Actions -->
-      <section class="bg-white p-4 rounded-xl shadow-md">
-        <h2 class="text-xl font-semibold mb-2">🩺 Quick Actions</h2>
-        <div class="flex flex-col sm:flex-row gap-3">
-          <button @click="goToBooking" class="btn-primary">
-            Book Appointment
+      <!-- STAFF SECTIONS -->
+      <div v-else class="flex flex-col gap-6">
+        <!-- Analytics -->
+        <section class="bg-white p-4 rounded-xl shadow-md">
+          <h2 class="text-xl font-semibold mb-2">📊 Analytics Overview</h2>
+          <ul class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-blue-900">
+            <li class="stat-box">
+              <strong class="text-lg">{{ stats.totalPatients }}</strong>
+              <p class="text-sm text-gray-600">Patients</p>
+            </li>
+            <li class="stat-box">
+              <strong class="text-lg">{{ stats.totalAppointments }}</strong>
+              <p class="text-sm text-gray-600">Appointments</p>
+            </li>
+            <li class="stat-box">
+              <strong class="text-lg">{{ stats.occupancyRate }}</strong>
+              <p class="text-sm text-gray-600">Occupancy</p>
+            </li>
+          </ul>
+          <button @click="goToAnalytics" class="btn-primary mt-4">
+            View Full Analytics
           </button>
+        </section>
+
+        <!-- Manage Appointments -->
+        <section class="bg-white p-4 rounded-xl shadow-md">
+          <h2 class="text-xl font-semibold mb-2">📋 Manage Appointments</h2>
+          <p class="text-gray-700 mb-2">
+            Review and edit all upcoming appointments.
+          </p>
           <button @click="goToAppointments" class="btn-outline">
-            View All
+            Go to Appointments
           </button>
-        </div>
-      </section>
-    </div>
-
-    <!-- STAFF SECTIONS -->
-    <div v-else class="flex flex-col gap-6">
-      <!-- Analytics -->
-      <section class="bg-white p-4 rounded-xl shadow-md">
-        <h2 class="text-xl font-semibold mb-2">📊 Analytics Overview</h2>
-        <ul class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-blue-900">
-          <li class="stat-box">
-            <strong class="text-lg">{{ stats.totalPatients }}</strong>
-            <p class="text-sm text-gray-600">Patients</p>
-          </li>
-          <li class="stat-box">
-            <strong class="text-lg">{{ stats.totalAppointments }}</strong>
-            <p class="text-sm text-gray-600">Appointments</p>
-          </li>
-          <li class="stat-box">
-            <strong class="text-lg">{{ stats.occupancyRate }}</strong>
-            <p class="text-sm text-gray-600">Occupancy</p>
-          </li>
-        </ul>
-        <button @click="goToAnalytics" class="btn-primary mt-4">
-          View Full Analytics
-        </button>
-      </section>
-
-      <!-- Manage Appointments -->
-      <section class="bg-white p-4 rounded-xl shadow-md">
-        <h2 class="text-xl font-semibold mb-2">📋 Manage Appointments</h2>
-        <p class="text-gray-700 mb-2">
-          Review and edit all upcoming appointments.
-        </p>
-        <button @click="goToAppointments" class="btn-outline">
-          Go to Appointments
-        </button>
-      </section>
-    </div>
+        </section>
+      </div>
+    </template>
   </div>
 </template>
 

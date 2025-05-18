@@ -1,50 +1,66 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import api from "@/axios/axios";
+import LoadingSpinner from "@/components/LoadingSpinner.vue";
+import { ref, onBeforeMount } from "vue";
+import { useToast } from "vue-toastification";
 
 type MedicalRecord = {
-  id: number;
-  patientName: string;
-  doctorName: string;
-  diagnosis: string;
-  treatment: string;
-  date: string;
+  prezime: string;
+  opis: string;
+  datum: string;
 };
 
-// Just one user's latest medical record
-const medicalRecord = ref<MedicalRecord>({
-  id: 1,
-  patientName: "John Doe",
-  doctorName: "Dr. Smith",
-  diagnosis: "Flu",
-  treatment: "Rest, hydration, and paracetamol",
-  date: "2025-05-12",
+const toast = useToast();
+
+const medicalRecord = ref<MedicalRecord[]>([]);
+const patientName = ref("");
+const isLoading = ref(true);
+
+onBeforeMount(async () => {
+  try {
+    const response = await api.get("/record");
+
+    console.log(response);
+
+    patientName.value = response.data.name;
+    medicalRecord.value = response.data.records;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+  }
 });
 </script>
 
 <template>
   <div class="record-container">
-    <h2>{{ medicalRecord.patientName }}'s Medical Record</h2>
-    <div class="record-card">
-      <div class="record-row">
-        <span class="label">Doctor:</span>
-        <span>{{ medicalRecord.doctorName }}</span>
-      </div>
+    <template v-if="isLoading"> <LoadingSpinner /> </template>
+    <template v-else-if="medicalRecord.length">
+      <h2>{{ patientName }}'s Medical Record</h2>
+      <div
+        v
+        v-for="(record, index) in medicalRecord"
+        :key="index"
+        class="record-card"
+      >
+        <div class="record-row">
+          <span class="label">Doctor:</span>
+          <span>dr. {{ record.prezime }}</span>
+        </div>
 
-      <div class="record-row">
-        <span class="label">Diagnosis:</span>
-        <span>{{ medicalRecord.diagnosis }}</span>
-      </div>
+        <div class="record-row">
+          <span class="label">Description:</span>
+          <span>{{ record.opis }}</span>
+        </div>
 
-      <div class="record-row">
-        <span class="label">Treatment:</span>
-        <span>{{ medicalRecord.treatment }}</span>
+        <div class="record-row">
+          <span class="label">Date:</span>
+          <span>{{ new Date(record.datum).toDateString() }}</span>
+        </div>
       </div>
-
-      <div class="record-row">
-        <span class="label">Date:</span>
-        <span>{{ medicalRecord.date }}</span>
-      </div>
-    </div>
+    </template>
+    <template v-else>No medical records.</template>
   </div>
 </template>
 

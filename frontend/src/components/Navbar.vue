@@ -1,7 +1,14 @@
 <script setup lang="ts">
 // vue
+import { useAuthStore } from "@/stores/authStore";
+import { storeToRefs } from "pinia";
 import { ref } from "vue";
 import { RouterLink } from "vue-router";
+
+// stores
+const authStore = useAuthStore();
+
+const { role } = storeToRefs(authStore);
 
 // data
 const isOpen = ref(false);
@@ -27,7 +34,9 @@ function closeModal() {
         <RouterLink to="/profile">Profile</RouterLink>
         <RouterLink to="/appointments">Appointments</RouterLink>
         <RouterLink to="/medical-records">Medical Records</RouterLink>
-        <RouterLink to="/analytics">Analytics</RouterLink>
+        <RouterLink v-if="role === 'osoblje'" to="/analytics"
+          >Analytics</RouterLink
+        >
       </div>
     </div>
   </nav>

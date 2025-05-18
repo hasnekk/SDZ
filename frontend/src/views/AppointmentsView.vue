@@ -1,98 +1,113 @@
 <script setup lang="ts">
 // Vue
-import { ref, onMounted, type Ref } from "vue";
+import { ref, type Ref, onBeforeMount } from "vue";
 import { useRouter } from "vue-router";
 
-const router = useRouter();
+import { useToast } from "vue-toastification";
 
-// Data
+import api from "@/axios/axios";
+
+const router = useRouter();
+const toast = useToast();
+
+// data
 const appointments: Ref<
   Array<{
-    id: number;
-    date: string;
-    doctor: string;
-    service: string;
+    id: string;
+    datum: string;
+    prezime: string; // doctor
+    opis: string;
+    status: string;
   }>
 > = ref([]);
-
-// Mock user role (use actual auth system in a real app)
-const user = {
-  role: "patient",
-};
-const isPatient = user?.role === "patient";
-const isStaff = user?.role === "staff";
+const isLoading = ref(true);
 
 // Functions
-function fetchAppointments() {
-  appointments.value = [
-    {
-      id: 1,
-      date: "2025-05-15 10:00",
-      doctor: "Dr. Smith",
-      service: "General Checkup",
-    },
-    {
-      id: 2,
-      date: "2025-05-16 14:00",
-      doctor: "Dr. Johnson",
-      service: "Dental Cleaning",
-    },
-  ];
-}
-
 function formatTime(time: string) {
   const date = new Date(time);
-  return `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+  const options: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  };
+  return new Intl.DateTimeFormat("en-GB", options).format(date);
 }
 
-function cancelAppointment(id: number) {
-  console.log(`Cancel appointment with id: ${id}`);
-  appointments.value = appointments.value.filter(
-    (appointment) => appointment.id !== id
-  );
+async function cancelAppointment(id: string) {
+  try {
+    isLoading.value = true;
+
+    const response = await api.delete("/appointment/" + id);
+    console.log(response);
+    appointments.value = appointments.value.filter((a) => a.id !== id);
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+  }
 }
 
-function editAppointment(id: number) {
+function editAppointment(id: string) {
   router.push(`/appointments/edit/${id}`);
 }
 
-onMounted(() => {
-  fetchAppointments();
+onBeforeMount(async () => {
+  try {
+    const response = await api.get("/appointment/all");
+
+    console.log(response);
+
+    appointments.value = response.data;
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.response.data.message);
+  } finally {
+    isLoading.value = false;
+  }
 });
 </script>
 
 <template>
   <div class="appointments-container">
-    <h1 class="appointments-title">Appointments</h1>
+    <template v-if="isLoading"></template>
+    <template v-else>
+      <h1 class="appointments-title">Appointments</h1>
 
-    <div class="appointments-list">
-      <div
-        v-for="appointment in appointments"
-        :key="appointment.id"
-        class="appointment-card"
-      >
-        <div class="appointment-info">
-          <h2 class="appointment-doctor">{{ appointment.doctor }}</h2>
-          <p class="appointment-time">{{ formatTime(appointment.date) }}</p>
-          <p class="appointment-service">{{ appointment.service }}</p>
-        </div>
-        <div class="appointment-actions">
-          <button class="btn edit-btn" @click="editAppointment(appointment.id)">
-            Edit
-          </button>
-          <button
-            class="btn cancel-btn"
-            @click="cancelAppointment(appointment.id)"
-          >
-            Cancel
-          </button>
+      <div class="appointments-list">
+        <div
+          v-for="appointment in appointments"
+          :key="appointment.id"
+          class="appointment-card"
+        >
+          <div class="appointment-info">
+            <h2 class="appointment-doctor">dr. {{ appointment.prezime }}</h2>
+            <p class="appointment-time">{{ formatTime(appointment.datum) }}</p>
+            <p class="appointment-service">{{ appointment.opis }}</p>
+          </div>
+          <div class="appointment-actions">
+            <button
+              class="btn edit-btn"
+              @click="editAppointment(appointment.id)"
+            >
+              Edit
+            </button>
+            <button
+              class="btn cancel-btn"
+              @click="cancelAppointment(appointment.id)"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <router-link to="/appointments/book" class="btn book-appointment-btn"
-      >Book New Appointment</router-link
-    >
+      <router-link to="/appointments/book" class="btn book-appointment-btn"
+        >Book New Appointment</router-link
+      >
+    </template>
   </div>
 </template>
 

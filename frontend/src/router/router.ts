@@ -10,10 +10,10 @@ import AnalyticsView from "@/views/AnalyticsView.vue";
 import AppointmentsView from "@/views/AppointmentsView.vue";
 import BookAppointmentView from "@/views/BookAppointmentView.vue";
 import EditAppointmentView from "@/views/EditAppointmentView.vue";
-import MedicalRecordsAddView from "@/views/MedicalRecordsAddView.vue";
 import MedicalRecordsView from "@/views/MedicalRecordsView.vue";
 
 import MainLayout from "@/layout/MainLayout.vue";
+import { useAuthStore } from "@/stores/authStore";
 
 const routes = [
   { path: "/login", component: LoginView },
@@ -23,7 +23,7 @@ const routes = [
     path: "/",
     component: MainLayout,
     children: [
-      { path: "", component: HomeView },
+      { path: "", name: "Home", component: HomeView },
       { path: "profile", component: ProfileView, name: "Profile" },
       {
         path: "appointments",
@@ -38,15 +38,7 @@ const routes = [
         path: "analytics",
         component: AnalyticsView,
         name: "Analytics",
-        // beforeEnter: (to, from, next) => {
-        //   const { user } = useAuth();
-        //   // If the user is not an admin, redirect to the Unauthorized page
-        //   if (user && user.role === "admin") {
-        //     next();
-        //   } else {
-        //     next("/unauthorized");
-        //   }
-        // },
+        meta: { requiresAuth: true, allowedRoles: ["osoblje"] },
       },
       {
         path: "/appointments/edit/:id",
@@ -58,11 +50,6 @@ const routes = [
         path: "/medical-records",
         name: "MedicalRecords",
         component: MedicalRecordsView,
-      },
-      {
-        path: "/medical-records/add",
-        name: "MedicalRecordsAdd",
-        component: MedicalRecordsAddView,
       },
     ],
   },
@@ -84,4 +71,23 @@ const router = createRouter({
   routes,
 });
 
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore();
+
+  const publicPages = ["/login", "/register"];
+  const authRequired = !publicPages.includes(to.path);
+  const userIsAuthenticated = authStore.isAuthenticated;
+  const userRole = authStore.role;
+
+  if (authRequired && !userIsAuthenticated) {
+    return next("/login");
+  }
+
+  const allowedRoles = to.meta.allowedRoles as any;
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    return next("/unauthorized");
+  }
+
+  next();
+});
 export default router;

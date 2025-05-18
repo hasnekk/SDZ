@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // vue
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 
 // 3-td party modules
 import { useToast } from "vue-toastification";
@@ -8,7 +9,16 @@ import { useToast } from "vue-toastification";
 //components
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
+// stores
+import { useAuthStore } from "@/stores/authStore";
+
+import api from "@/axios/axios";
+
 const toast = useToast();
+const router = useRouter();
+
+// stores
+const authStore = useAuthStore();
 
 // data
 const email = ref("");
@@ -17,7 +27,7 @@ const showPassword = ref(false);
 const isLoading = ref(false);
 
 // functions
-function handleLogin() {
+async function handleLogin() {
   if (!email.value || !password.value) {
     toast.error("Please enter both email and password.");
     return;
@@ -26,9 +36,21 @@ function handleLogin() {
   isLoading.value = true;
 
   try {
-  } catch (error) {
+    const response = await api.post("/auth/login", {
+      email: email.value,
+      password: password.value,
+    });
+
+    console.log(response);
+
+    const { message, role } = response.data;
+    authStore.login(role);
+    toast.success(message);
+
+    router.push({ name: "Home" });
+  } catch (error: any) {
     console.log(error);
-    toast.error(error);
+    toast.error(error.response.data.message);
   } finally {
     isLoading.value = false;
   }
